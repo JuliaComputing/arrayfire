@@ -1,7 +1,6 @@
 INCLUDE(ExternalProject)
 
 SET(prefix ${CMAKE_BINARY_DIR}/third_party/forge)
-SET(forge_location "${prefix}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}forge${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 IF(CMAKE_VERSION VERSION_LESS 3.2)
     IF(CMAKE_GENERATOR MATCHES "Ninja")
@@ -33,11 +32,18 @@ ExternalProject_Add(
     ${byproducts}
     )
 
+ExternalProject_Get_Property(forge-ext binary_dir)
 ExternalProject_Get_Property(forge-ext install_dir)
 ADD_LIBRARY(forge SHARED IMPORTED)
-SET_TARGET_PROPERTIES(forge PROPERTIES IMPORTED_LOCATION ${forge_location})
+SET_TARGET_PROPERTIES(forge PROPERTIES IMPORTED_LOCATION ${binary_dir}/src/libforge.so)
 IF(WIN32)
     SET_TARGET_PROPERTIES(forge PROPERTIES IMPORTED_IMPLIB ${prefix}/lib/forge.lib)
+ELSE(WIN32)
+    IF(APPLE)
+	SET_TARGET_PROPERTIES(forge PROPERTIES IMPORTED_LOCATION ${binary_dir}/src/libforge.dylib)
+    ELSE(APPLE)
+	SET_TARGET_PROPERTIES(forge PROPERTIES IMPORTED_LOCATION ${binary_dir}/src/libforge.so)
+    ENDIF(APPLE)
 ENDIF(WIN32)
 ADD_DEPENDENCIES(forge forge-ext)
 SET(FORGE_INCLUDE_DIRECTORIES ${install_dir}/include)
