@@ -169,33 +169,69 @@ ELSE(${UNIX}) #Windows
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
 ENDIF()
 
+IF(DEFINED BLAS_SYM_FILE)
 
-ADD_LIBRARY(afopencl SHARED
-            ${opencl_headers}
-            ${opencl_sources}
-            ${jit_sources}
-            ${kernel_headers}
-            ${opencl_kernels}
-            ${kernel_sources}
-            ${conv_ker_headers}
-            ${conv_ker_sources}
-            ${backend_headers}
-            ${backend_sources}
-            ${c_sources}
-            ${c_headers}
-            ${cpp_sources}
-            ${magma_sources}
-            ${magma_headers}
-            )
+    ADD_LIBRARY(afopencl_static STATIC
+                ${opencl_headers}
+                ${opencl_sources}
+                ${jit_sources}
+                ${kernel_headers}
+                ${opencl_kernels}
+                ${kernel_sources}
+                ${conv_ker_headers}
+                ${conv_ker_sources}
+                ${backend_headers}
+                ${backend_sources}
+                ${magma_sources}
+                ${magma_headers})
 
-ADD_DEPENDENCIES(afopencl ${cl_kernel_targets})
+    add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/afopencl_static.renamed
+        COMMAND objcopy --redefine-syms ${BLAS_SYM_FILE} $<TARGET_FILE:afopencl_static> ${CMAKE_BINARY_DIR}/afopencl_static.renamed
+        DEPENDS $<TARGET_FILE:afopencl_static>)
 
-TARGET_LINK_LIBRARIES(afopencl  PRIVATE ${OpenCL_LIBRARIES}
-                                PRIVATE ${FreeImage_LIBS}
-                                PRIVATE ${CLBLAS_LIBRARIES}
-                                PRIVATE ${CLFFT_LIBRARIES}
-                                PRIVATE ${CMAKE_DL_LIBS}
-                                PRIVATE ${Boost_LIBRARIES})
+    ADD_LIBRARY(afopencl SHARED
+               ${c_headers}
+               ${c_sources}
+               ${cpp_sources}
+               ${CMAKE_BINARY_DIR}/afopencl_static.renamed)
+
+    ADD_DEPENDENCIES(afopencl ${cl_kernel_targets})
+
+    TARGET_LINK_LIBRARIES(afopencl  PUBLIC ${CMAKE_BINARY_DIR}/afopencl_static.renamed
+                                    PRIVATE ${OpenCL_LIBRARIES}
+                                    PRIVATE ${FreeImage_LIBS}
+                                    PRIVATE ${CLBLAS_LIBRARIES}
+                                    PRIVATE ${CLFFT_LIBRARIES}
+                                    PRIVATE ${CMAKE_DL_LIBS}
+                                    PRIVATE ${Boost_LIBRARIES})
+ELSE(DEFINED BLAS_SYM_FILE)
+
+    ADD_LIBRARY(afopencl SHARED
+                ${opencl_headers}
+                ${opencl_sources}
+                ${jit_sources}
+                ${kernel_headers}
+                ${opencl_kernels}
+                ${kernel_sources}
+                ${conv_ker_headers}
+                ${conv_ker_sources}
+                ${backend_headers}
+                ${backend_sources}
+                ${c_headers}
+                ${c_sources}
+                ${cpp_sources}
+                ${magma_sources}
+                ${magma_headers})
+
+    TARGET_LINK_LIBRARIES(afopencl
+                                    PRIVATE ${OpenCL_LIBRARIES}
+                                    PRIVATE ${FreeImage_LIBS}
+                                    PRIVATE ${CLBLAS_LIBRARIES}
+                                    PRIVATE ${CLFFT_LIBRARIES}
+                                    PRIVATE ${CMAKE_DL_LIBS}
+                                    PRIVATE ${Boost_LIBRARIES})
+
+ENDIF()
 
 IF(LAPACK_FOUND)
    TARGET_LINK_LIBRARIES(afopencl   PRIVATE ${LAPACK_LIBRARIES})

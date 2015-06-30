@@ -102,18 +102,45 @@ ELSE(${UNIX}) #Windows
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 ENDIF()
 
-ADD_LIBRARY(afcpu SHARED
-           ${cpu_headers}
-           ${cpu_sources}
-           ${backend_headers}
-           ${backend_sources}
-           ${c_headers}
-           ${c_sources}
-           ${cpp_sources})
 
-TARGET_LINK_LIBRARIES(afcpu PRIVATE ${FreeImage_LIBS}
-                            PRIVATE ${CBLAS_LIBRARIES}
-                            PRIVATE ${FFTW_LIBRARIES})
+IF(DEFINED BLAS_SYM_FILE)
+  ADD_LIBRARY(afcpu_static STATIC
+              ${cpu_headers}
+              ${cpu_sources}
+              ${backend_headers}
+              ${backend_sources})
+
+  add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/afcpu_static.renamed
+    COMMAND objcopy --redefine-syms ${BLAS_SYM_FILE} $<TARGET_FILE:afcpu_static> ${CMAKE_BINARY_DIR}/afcpu_static.renamed
+    DEPENDS $<TARGET_FILE:afcpu_static>)
+
+  ADD_LIBRARY(afcpu SHARED
+              ${c_headers}
+              ${c_sources}
+              ${cpp_sources}
+              ${CMAKE_BINARY_DIR}/afcpu_static.renamed)
+
+  TARGET_LINK_LIBRARIES(afcpu PUBLIC ${CMAKE_BINARY_DIR}/afcpu_static.renamed
+                              PRIVATE ${FreeImage_LIBS}
+                              PRIVATE ${CBLAS_LIBRARIES}
+                              PRIVATE ${FFTW_LIBRARIES})
+ELSE(DEFINED BLAS_SYM_FILE)
+
+  ADD_LIBRARY(afcpu SHARED
+              ${cpu_headers}
+              ${cpu_sources}
+              ${backend_headers}
+              ${backend_sources}
+              ${c_headers}
+              ${c_sources}
+              ${cpp_sources})
+
+  TARGET_LINK_LIBRARIES(afcpu
+                              PRIVATE ${FreeImage_LIBS}
+                              PRIVATE ${CBLAS_LIBRARIES}
+                              PRIVATE ${FFTW_LIBRARIES})
+
+ENDIF(DEFINED BLAS_SYM_FILE)
 
 IF(LAPACK_FOUND)
    TARGET_LINK_LIBRARIES(afcpu  PRIVATE ${LAPACK_LIBRARIES})
